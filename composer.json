@@ -1,0 +1,10 @@
+{
+    "name": "amund/wp-svgstore",
+    "type": "wordpress-muplugin",
+    "description": "Combine SVG icon files into a sprite for efficient use on website",
+    "homepage": "https://github.com/Amund/wp-svgstore",
+    "require": {
+        "php": ">=8.1",
+        "deeplcom/deepl-php": "^1.11"
+    }
+}
