@@ -1,3 +1,6 @@
+![GitHub Tag](https://img.shields.io/github/v/tag/Amund/wp-svgstore)
+![Static Badge](https://img.shields.io/badge/wordpress-plugin-blue)
+
 # wp-svgstore
 
 **wp-svgstore** is a WordPress plugin that compiles a collection of SVG files into a single file and injects it into the footer of your website for efficient use of SVG icons.
