@@ -15,15 +15,6 @@ class svgstore
     public static function icon($id): string
     {
         $class = ['icon', 'icon-' . $id];
-        // return vp::render([
-        //     'tag' => 'svg',
-        //     'class' => implode(' ', $class),
-        //     'aria-hidden' => 'true',
-        //     'content' => [
-        //         'tag' => 'use',
-        //         'xlink:href' => '#' . $id
-        //     ]
-        // ]);
         return strtr('<svg class="{class}" aria-hidden="true"><use xlink:href="#{id}"></use></svg>', [
             '{id}' => $id,
             '{class}' => implode(' ', $class),
@@ -90,12 +81,8 @@ class svgstore
         } else {
             $content = 'Svgstore file not found';
         }
-        echo vp::render([
-            'tag' => 'div',
-            'class' => 'svgstore',
-            'aria-hidden' => 'true',
-            'style' => 'display:none;',
-            'content' => $content,
+        echo strtr('<div class="svgstore" aria-hidden="true" style="display:none;">{content}</div>', [
+            '{content}' => $content,
         ]);
     }
 
@@ -122,7 +109,7 @@ class svgstore
         $source = self::source();
         $destination = self::destination();
         $symbols = [];
-        $list = vp::filemap($source);
+        $list = self::filemap($source);
         foreach ($list as $item) {
             if (str_ends_with($item, '.svg')) {
                 $id = pathinfo($item, PATHINFO_FILENAME);
@@ -147,12 +134,14 @@ class svgstore
             }
         }
 
-        $svg = vp::render([
-            'tag' => 'svg',
-            'xmlns' => 'http://www.w3.org/2000/svg',
-            'xmlns:xlink' => 'http://www.w3.org/1999/xlink',
-            'content' => $symbols
-        ]);
+        $svg = strtr(
+            '<svg xmlns="{xmlns}" xmlns:xlink="{xlink}">{symbols}</svg>',
+            [
+                '{xmlns}' => 'http://www.w3.org/2000/svg',
+                '{xlink}' => 'http://www.w3.org/1999/xlink',
+                '{symbols}' => implode('', $symbols),
+            ]
+        );
         $written = file_put_contents($destination, $svg, LOCK_EX);
 
         return [
@@ -186,5 +175,50 @@ class svgstore
         } else {
             return @unlink(self::destination());
         }
+    }
+
+    /**
+     * Recursive folder content mapping.
+     *
+     * @param string $folder The path to the folder.
+     * @param int    $sort   The sorting flags (default: SORT_NATURAL | SORT_FLAG_CASE).
+     *
+     * @return array|false A list of relative paths to files and folders (or false if empty).
+     */
+    static function filemap($folder, $sort = SORT_NATURAL | SORT_FLAG_CASE)
+    {
+        if (is_dir($folder) && ($fp = @opendir($folder))) {
+            $folders = [];
+            $files = [];
+            while (($entry = readdir($fp)) !== false) {
+                if ($entry === '.' || $entry === '..') {
+                    continue;
+                }
+                if (is_dir($folder . '/' . $entry)) {
+                    $folders[] = $entry;
+                } elseif (is_file($folder . '/' . $entry)) {
+                    $files[] = $entry;
+                }
+            }
+            closedir($fp);
+            if (empty($folders) && empty($files)) {
+                return false;
+            }
+            sort($folders, $sort);
+            sort($files, $sort);
+            foreach ($folders as $key => $value) {
+                $map = self::filemap($folder . '/' . $value);
+                unset($folders[$key]);
+                if (is_array($map) && !empty($map)) {
+                    foreach ($map as $p) {
+                        $folders[] = $value . '/' . $p;
+                    }
+                }
+            }
+            $output = [...$folders, ...$files];
+            return $output;
+        }
+
+        return false;
     }
 }
