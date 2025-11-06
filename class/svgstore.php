@@ -10,14 +10,28 @@ class svgstore
      * and assigns a class to the SVG for styling purposes.
      *
      * @param string $id The identifier for the SVG element.
+     * @param array $attrs Svg tag attributes.
      * @return string The formatted SVG element as a string.
      */
-    public static function icon($id): string
+    public static function icon($id, $attrs = []): string
     {
-        $class = ['icon', 'icon-' . $id];
-        return strtr('<svg class="{class}" aria-hidden="true"><use xlink:href="#{id}"></use></svg>', [
+        $attrs['class'] = implode(' ', ['icon', 'icon-' . $id, ...($attrs['class'] ?? [])]);
+        $attrs['role'] = $attrs['role'] ?? 'img';
+        $attrs['aria-hidden'] = $attrs['aria-hidden'] ?? 'true';
+        if (isset($attrs['title'])) {
+            $title = '<title>' . $attrs['title'] . '</title>';
+            $attrs['aria-label'] = $attrs['title'];
+            unset($attrs['title']);
+            unset($attrs['aria-hidden']);
+        }
+        foreach ($attrs as $k => $v) {
+            $attrs[$k] = $k . '="' . $v . '"';
+        }
+        $attrs = implode(' ', $attrs);
+        return strtr('<svg {attrs}>{title}<use xlink:href="#{id}"></use></svg>', [
             '{id}' => $id,
-            '{class}' => implode(' ', $class),
+            '{attrs}' => $attrs,
+            '{title}' => $title ?? '',
         ]);
     }
 
