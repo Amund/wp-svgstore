@@ -13,7 +13,7 @@ class Svgstore_CLI
     {
         $response = svgstore::create();
         if ($response['success'] === false) {
-            WP_CLI::error('File not created');
+            WP_CLI::error('File not created' . (isset($response['error']) ? ': ' . $response['error'] . ' (' . $response['source'] . ')' : ''));
         } else {
             $message = "Svgstore created.\nnb_svg svg files found in source directory\nnb_symbols symbols written in destination file";
             $message = strtr($message, $response);

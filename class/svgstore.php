@@ -115,6 +115,7 @@ class svgstore
      *  - destination: the path to the destination file.
      *  - nb_svg: the number of SVG files found in the source directory.
      *  - nb_symbols: the number of SVG symbols written in the destination file.
+     *  - error: (only when no symbol was found) the reason; the destination file is left untouched.
      *
      * @return array The result of the file creation.
      */
@@ -123,7 +124,7 @@ class svgstore
         $source = self::source();
         $destination = self::destination();
         $symbols = [];
-        $list = self::filemap($source);
+        $list = self::filemap($source) ?: [];
         foreach ($list as $item) {
             if (str_ends_with($item, '.svg')) {
                 $id = pathinfo($item, PATHINFO_FILENAME);
@@ -146,6 +147,18 @@ class svgstore
                     $symbols[] = simplexml_import_dom($symbol)->asXML();
                 }
             }
+        }
+
+        // Never overwrite an existing sprite with an empty one (missing or empty source directory).
+        if (empty($symbols)) {
+            return [
+                'success' => false,
+                'source' => $source,
+                'destination' => $destination,
+                'nb_svg' => count($list),
+                'nb_symbols' => 0,
+                'error' => is_dir($source) ? 'No SVG symbol found in source directory' : 'Source directory not found',
+            ];
         }
 
         $svg = strtr(
