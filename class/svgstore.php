@@ -114,7 +114,7 @@ class svgstore
      *  - success: true if the file was written successfully, false otherwise.
      *  - source: the path to the source directory.
      *  - destination: the path to the destination file.
-     *  - nb_svg: the number of SVG files found in the source directory.
+     *  - nb_svg: the number of SVG files (".svg" extension, case-insensitive) found in the source directory.
      *  - nb_symbols: the number of SVG symbols written in the destination file.
      *  - error: (only on failure: no symbol found, or duplicate ids) the reason; the destination file is left untouched.
      *  - duplicates: (only on duplicate ids) an array of id => list of files resolving to that id.
@@ -127,9 +127,11 @@ class svgstore
         $destination = self::destination();
         $symbols = [];
         $ids = [];
+        $nb_svg = 0;
         $list = self::filemap($source) ?: [];
         foreach ($list as $item) {
-            if (str_ends_with($item, '.svg')) {
+            if (str_ends_with(strtolower($item), '.svg')) {
+                $nb_svg++;
                 $id = self::id($item);
                 $itemDom = new DomDocument();
                 $itemDom->load($source . '/' . $item);
@@ -159,7 +161,7 @@ class svgstore
                 'success' => false,
                 'source' => $source,
                 'destination' => $destination,
-                'nb_svg' => count($list),
+                'nb_svg' => $nb_svg,
                 'nb_symbols' => 0,
                 'error' => is_dir($source) ? 'No SVG symbol found in source directory' : 'Source directory not found',
             ];
@@ -176,7 +178,7 @@ class svgstore
                 'success' => false,
                 'source' => $source,
                 'destination' => $destination,
-                'nb_svg' => count($list),
+                'nb_svg' => $nb_svg,
                 'nb_symbols' => 0,
                 'error' => 'Duplicate ids: ' . implode(', ', $details),
                 'duplicates' => $duplicates,
@@ -197,7 +199,7 @@ class svgstore
             'success' => $written !== false,
             'source' => $source,
             'destination' => $destination,
-            'nb_svg' => count($list),
+            'nb_svg' => $nb_svg,
             'nb_symbols' => count($symbols),
         ];
     }
