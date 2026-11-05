@@ -114,6 +114,8 @@ class svgstore
      * The viewBox attribute of the SVG symbol is copied from the original SVG element,
      * or rebuilt from its width and height when missing (see viewbox()).
      * The content of the SVG element is copied recursively in the SVG symbol.
+     * Ids inside the SVG element are prefixed with the symbol id (see prefix_ids()),
+     * unless the "svgstore_prefix_ids" filter returns false.
      * The resulting SVG document is written in the destination file.
      *
      * Returns an array containing the following information:
@@ -139,6 +141,7 @@ class svgstore
         $skipped = [];
         $warnings = [];
         $list = self::filemap($source) ?: [];
+        $prefix_ids = apply_filters('svgstore_prefix_ids', true);
         // Collect XML errors instead of emitting raw PHP warnings.
         $libxml_previous = libxml_use_internal_errors(true);
         foreach ($list as $item) {
@@ -165,6 +168,9 @@ class svgstore
                     $warnings[$item] = $viewbox === ''
                         ? 'no viewBox attribute, the icon will not scale'
                         : 'no viewBox attribute, rebuilt from width and height: "' . $viewbox . '"';
+                }
+                if ($prefix_ids) {
+                    self::prefix_ids($tag, $id);
                 }
                 $symbol = $itemDom->createElement('symbol');
                 $symbol->setAttribute('id', $id);
@@ -235,6 +241,63 @@ class svgstore
             'skipped' => $skipped,
             'warnings' => $warnings,
         ];
+    }
+
+    /**
+     * Prefixes the ids found inside an SVG element, and rewrites the references to them.
+     *
+     * Each file of the sprite has its own ids (gradients, clipPaths, masks...), often minified
+     * to "a", "b", "c"... Once merged in a single sprite, "url(#a)" would target the first "#a"
+     * of the page. Ids are prefixed with the symbol id: "a" => "logo__a" in the "logo" symbol.
+     *
+     * Rewritten references: url(#id) in attributes and <style> elements, href and xlink:href "#id",
+     * aria-labelledby and aria-describedby.
+     *
+     * @param DOMElement $root The SVG element (its own id is left untouched).
+     * @param string $prefix The prefix, usually the symbol id.
+     * @return array The map of renamed ids (old => new), empty if there was no id.
+     */
+    public static function prefix_ids(DOMElement $root, string $prefix): array
+    {
+        $map = [];
+        $xpath = new DOMXPath($root->ownerDocument);
+        foreach ($xpath->query('.//*[@id]', $root) as $node) {
+            $old = $node->getAttribute('id');
+            $map[$old] = $prefix . '__' . $old;
+            $node->setAttribute('id', $map[$old]);
+        }
+        if (empty($map)) {
+            return $map;
+        }
+
+        $urls = fn(string $value): string => preg_replace_callback(
+            '/url\(\s*([\'"]?)#([^\'")\s]+)\1\s*\)/',
+            fn($m) => isset($map[$m[2]]) ? 'url(' . $m[1] . '#' . $map[$m[2]] . $m[1] . ')' : $m[0],
+            $value
+        );
+        foreach ($xpath->query('.//*', $root) as $element) {
+            foreach ($element->attributes as $attr) {
+                $value = $attr->value;
+                if ($attr->localName === 'href') {
+                    if (str_starts_with($value, '#') && isset($map[substr($value, 1)])) {
+                        $attr->value = '#' . $map[substr($value, 1)];
+                    }
+                } elseif ($attr->name === 'aria-labelledby' || $attr->name === 'aria-describedby') {
+                    $tokens = preg_split('/\s+/', trim($value));
+                    $attr->value = implode(' ', array_map(fn($t) => $map[$t] ?? $t, $tokens));
+                } elseif (str_contains($value, 'url(')) {
+                    $attr->value = $urls($value);
+                }
+            }
+            if ($element->localName === 'style') {
+                foreach ($element->childNodes as $text) {
+                    if ($text instanceof DOMText) {
+                        $text->data = $urls($text->data);
+                    }
+                }
+            }
+        }
+        return $map;
     }
 
     /**

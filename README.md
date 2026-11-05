@@ -61,6 +61,16 @@ add_filter('svgstore_destination', fn() => get_stylesheet_directory() . '/dist/s
 
 The filters apply both to the injection in the page and to the WP-CLI commands.
 
+### Internal ids
+
+SVG files often contain ids (gradients, clip paths, masks...), minified to `a`, `b`, `c`... by optimizers, and therefore identical from one file to another. Once merged in a single sprite, `url(#a)` would always target the first `#a` of the page. To avoid this, ids inside each icon are prefixed with the icon id when the sprite is created: `a` becomes `logo__a` in the `logo` icon, and references to it (`url(#a)`, `href="#a"`, `aria-labelledby`) are updated.
+
+Icon ids themselves are not changed. To disable the prefixing:
+
+```php
+add_filter('svgstore_prefix_ids', '__return_false');
+```
+
 ### Via WP-CLI
 
 The plugin supports the following WP-CLI commands:
