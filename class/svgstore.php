@@ -108,7 +108,8 @@ class svgstore
      *
      * Creates a new SVG document containing all the SVG symbols found in the source directory.
      * The SVG symbols are wrapped in a <symbol> element with a unique id (see id()).
-     * The viewBox attribute of the SVG symbol is copied from the original SVG element.
+     * The viewBox attribute of the SVG symbol is copied from the original SVG element,
+     * or rebuilt from its width and height when missing (see viewbox()).
      * The content of the SVG element is copied recursively in the SVG symbol.
      * The resulting SVG document is written in the destination file.
      *
@@ -120,6 +121,8 @@ class svgstore
      *  - nb_symbols: the number of SVG symbols written in the destination file.
      *  - error: (only on failure: no symbol found, or duplicate ids) the reason; the destination file is left untouched.
      *  - duplicates: (only on duplicate ids) an array of id => list of files resolving to that id.
+     *  - skipped: an array of file => reason, for SVG files that could not be converted to a symbol.
+     *  - warnings: an array of file => message, for SVG files converted with a possible issue (e.g. missing viewBox).
      *
      * @return array The result of the file creation.
      */
@@ -130,32 +133,51 @@ class svgstore
         $symbols = [];
         $ids = [];
         $nb_svg = 0;
+        $skipped = [];
+        $warnings = [];
         $list = self::filemap($source) ?: [];
+        // Collect XML errors instead of emitting raw PHP warnings.
+        $libxml_previous = libxml_use_internal_errors(true);
         foreach ($list as $item) {
             if (str_ends_with(strtolower($item), '.svg')) {
                 $nb_svg++;
                 $id = self::id($item);
                 $itemDom = new DomDocument();
+                libxml_clear_errors();
                 $itemDom->load($source . '/' . $item);
+                $xml_errors = libxml_get_errors();
+                libxml_clear_errors();
                 $tags = $itemDom->getElementsByTagName('svg');
-                if ($tags->length > 0) {
-                    $tag = $tags->item(0);
-                    $viewbox = $tag->getAttribute('viewBox');
-                    $symbol = $itemDom->createElement('symbol');
-                    $symbol->setAttribute('id', $id);
-                    $symbol->setAttribute('viewBox', $viewbox);
-                    $children = $tag->childNodes;
-                    foreach (iterator_to_array($children) as $child) {
-                        if ($child instanceof DOMElement) {
-                            $clone = $child->cloneNode(true);
-                            $symbol->appendChild($clone);
-                        }
-                    }
-                    $symbols[] = simplexml_import_dom($symbol)->asXML();
-                    $ids[$id][] = $item;
+                if ($tags->length === 0) {
+                    $skipped[$item] = !empty($xml_errors) ? trim($xml_errors[0]->message) : 'no <svg> element found';
+                    continue;
                 }
+                if (!empty($xml_errors)) {
+                    $warnings[$item] = trim($xml_errors[0]->message);
+                }
+                $tag = $tags->item(0);
+                $viewbox = $tag->getAttribute('viewBox');
+                if ($viewbox === '') {
+                    $viewbox = self::viewbox($tag->getAttribute('width'), $tag->getAttribute('height'));
+                    $warnings[$item] = $viewbox === ''
+                        ? 'no viewBox attribute, the icon will not scale'
+                        : 'no viewBox attribute, rebuilt from width and height: "' . $viewbox . '"';
+                }
+                $symbol = $itemDom->createElement('symbol');
+                $symbol->setAttribute('id', $id);
+                $symbol->setAttribute('viewBox', $viewbox);
+                $children = $tag->childNodes;
+                foreach (iterator_to_array($children) as $child) {
+                    if ($child instanceof DOMElement) {
+                        $clone = $child->cloneNode(true);
+                        $symbol->appendChild($clone);
+                    }
+                }
+                $symbols[] = simplexml_import_dom($symbol)->asXML();
+                $ids[$id][] = $item;
             }
         }
+        libxml_use_internal_errors($libxml_previous);
 
         // Never overwrite an existing sprite with an empty one (missing or empty source directory).
         if (empty($symbols)) {
@@ -165,6 +187,8 @@ class svgstore
                 'destination' => $destination,
                 'nb_svg' => $nb_svg,
                 'nb_symbols' => 0,
+                'skipped' => $skipped,
+                'warnings' => $warnings,
                 'error' => is_dir($source) ? 'No SVG symbol found in source directory' : 'Source directory not found',
             ];
         }
@@ -182,6 +206,8 @@ class svgstore
                 'destination' => $destination,
                 'nb_svg' => $nb_svg,
                 'nb_symbols' => 0,
+                'skipped' => $skipped,
+                'warnings' => $warnings,
                 'error' => 'Duplicate ids: ' . implode(', ', $details),
                 'duplicates' => $duplicates,
             ];
@@ -203,7 +229,27 @@ class svgstore
             'destination' => $destination,
             'nb_svg' => $nb_svg,
             'nb_symbols' => count($symbols),
+            'skipped' => $skipped,
+            'warnings' => $warnings,
         ];
+    }
+
+    /**
+     * Builds a viewBox from the width and height attributes of an SVG element.
+     *
+     * Only plain numbers, optionally in pixels, are supported: "32" or "32px" => "0 0 32 32".
+     *
+     * @param string $width The width attribute.
+     * @param string $height The height attribute.
+     * @return string The viewBox, or an empty string if it cannot be built.
+     */
+    public static function viewbox(string $width, string $height): string
+    {
+        $pattern = '/^\s*(\d+(?:\.\d+)?)\s*(?:px)?\s*$/';
+        if (preg_match($pattern, $width, $w) && preg_match($pattern, $height, $h)) {
+            return '0 0 ' . $w[1] . ' ' . $h[1];
+        }
+        return '';
     }
 
     /**

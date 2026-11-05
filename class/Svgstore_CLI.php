@@ -12,11 +12,17 @@ class Svgstore_CLI
     function create()
     {
         $response = svgstore::create();
+        foreach ($response['skipped'] ?? [] as $file => $reason) {
+            WP_CLI::warning($file . ': skipped, ' . $reason);
+        }
+        foreach ($response['warnings'] ?? [] as $file => $message) {
+            WP_CLI::warning($file . ': ' . $message);
+        }
         if ($response['success'] === false) {
             WP_CLI::error('File not created' . (isset($response['error']) ? ': ' . $response['error'] . ' (' . $response['source'] . ')' : ''));
         } else {
             $message = "Svgstore created.\nnb_svg svg files found in source directory\nnb_symbols symbols written in destination file";
-            $message = strtr($message, $response);
+            $message = strtr($message, array_filter($response, 'is_scalar'));
             WP_CLI::success($message);
         }
     }
