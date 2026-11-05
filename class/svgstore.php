@@ -61,24 +61,26 @@ class svgstore
      * Retrieves the path to the SVG store source directory.
      *
      * The source directory contains all the SVG files to be injected in the page footer.
+     * Defaults to the "svgstore" folder of the theme, can be changed with the "svgstore_source" filter.
      *
      * @return string The path to the SVG store source directory.
      */
     public static function source(): string
     {
-        return get_template_directory() . '/svgstore';
+        return apply_filters('svgstore_source', get_template_directory() . '/svgstore');
     }
 
     /**
      * Retrieves the path to the SVG store destination file.
      *
      * The destination file is the file that is created by the create method and contains all the SVG symbols.
+     * Defaults to "svgstore.svg" in the theme folder, can be changed with the "svgstore_destination" filter.
      *
      * @return string The path to the SVG store destination file.
      */
     public static function destination(): string
     {
-        return get_template_directory() . '/svgstore.svg';
+        return apply_filters('svgstore_destination', get_template_directory() . '/svgstore.svg');
     }
 
     /**

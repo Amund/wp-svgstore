@@ -50,6 +50,17 @@ SVG files are read from the `svgstore/` folder of the theme. The icon id is the 
 
 If several files resolve to the same id (e.g. `social-x.svg` and `social/x.svg`), `wp svgstore create` fails and the existing sprite file is left untouched.
 
+### Paths
+
+By default, SVG files are read from the `svgstore/` folder of the theme, and the sprite is written to `svgstore.svg` in the theme folder. Both paths can be changed with filters, for example in the `functions.php` of the theme:
+
+```php
+add_filter('svgstore_source', fn() => get_stylesheet_directory() . '/assets/icons');
+add_filter('svgstore_destination', fn() => get_stylesheet_directory() . '/dist/svgstore.svg');
+```
+
+The filters apply both to the injection in the page and to the WP-CLI commands.
+
 ### Via WP-CLI
 
 The plugin supports the following WP-CLI commands:
