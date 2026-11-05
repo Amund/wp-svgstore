@@ -12,6 +12,7 @@ class svgstore
      * @param string $id The identifier for the SVG element.
      * @param array $attrs Svg tag attributes. 'class' accepts a string or an array of classes,
      *                     appended to 'icon icon-{id}'. 'title' adds a <title> and an aria-label.
+     *                     Values and title are escaped (esc_attr / esc_html), attribute names are not.
      * @return string The formatted SVG element as a string.
      */
     public static function icon($id, $attrs = []): string
@@ -20,17 +21,17 @@ class svgstore
         $attrs['role'] = $attrs['role'] ?? 'img';
         $attrs['aria-hidden'] = $attrs['aria-hidden'] ?? 'true';
         if (isset($attrs['title'])) {
-            $title = '<title>' . $attrs['title'] . '</title>';
+            $title = '<title>' . esc_html($attrs['title']) . '</title>';
             $attrs['aria-label'] = $attrs['title'];
             unset($attrs['title']);
             unset($attrs['aria-hidden']);
         }
         foreach ($attrs as $k => $v) {
-            $attrs[$k] = $k . '="' . $v . '"';
+            $attrs[$k] = $k . '="' . esc_attr($v) . '"';
         }
         $attrs = implode(' ', $attrs);
         return strtr('<svg {attrs}>{title}<use xlink:href="#{id}"></use></svg>', [
-            '{id}' => $id,
+            '{id}' => esc_attr($id),
             '{attrs}' => $attrs,
             '{title}' => $title ?? '',
         ]);
