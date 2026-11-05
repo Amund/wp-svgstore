@@ -1,0 +1,4 @@
+# Development files, excluded from the archives downloaded by Composer (dist)
+/_ide_helper.php export-ignore
+/.vscode export-ignore
+/.gitattributes export-ignore

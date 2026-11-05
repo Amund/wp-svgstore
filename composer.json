@@ -3,6 +3,7 @@
     "type": "wordpress-muplugin",
     "description": "Combine SVG icon files into a sprite for efficient use on website",
     "homepage": "https://github.com/Amund/wp-svgstore",
+    "license": "MIT",
     "require": {
         "php": ">=8.1"
     }
