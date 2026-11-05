@@ -10,12 +10,13 @@ class svgstore
      * and assigns a class to the SVG for styling purposes.
      *
      * @param string $id The identifier for the SVG element.
-     * @param array $attrs Svg tag attributes.
+     * @param array $attrs Svg tag attributes. 'class' accepts a string or an array of classes,
+     *                     appended to 'icon icon-{id}'. 'title' adds a <title> and an aria-label.
      * @return string The formatted SVG element as a string.
      */
     public static function icon($id, $attrs = []): string
     {
-        $attrs['class'] = implode(' ', ['icon', 'icon-' . $id, ...($attrs['class'] ?? [])]);
+        $attrs['class'] = implode(' ', ['icon', 'icon-' . $id, ...(array) ($attrs['class'] ?? [])]);
         $attrs['role'] = $attrs['role'] ?? 'img';
         $attrs['aria-hidden'] = $attrs['aria-hidden'] ?? 'true';
         if (isset($attrs['title'])) {
