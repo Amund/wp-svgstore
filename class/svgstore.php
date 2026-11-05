@@ -87,7 +87,7 @@ class svgstore
      * Injects the SVG store in the page footer.
      *
      * Retrieves the content of the SVG store file and injects it in the page footer.
-     * The SVG store is hidden by CSS and is only used as a reference for SVG icons.
+     * The SVG store is visually hidden (zero-sized, out of the flow) and is only used as a reference for SVG icons.
      *
      * @return void
      */
@@ -98,7 +98,9 @@ class svgstore
         } else {
             $content = 'Svgstore file not found';
         }
-        echo strtr('<div class="svgstore" aria-hidden="true" style="display:none;">{content}</div>', [
+        // Not "display:none": gradients, patterns, clipPaths and masks defined in a display:none container
+        // are not rendered by Chromium-based browsers.
+        echo strtr('<div class="svgstore" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden;">{content}</div>', [
             '{content}' => $content,
         ]);
     }
