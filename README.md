@@ -39,6 +39,17 @@ composer require amund/wp-svgstore
 
 The plugin automatically injects the SVG sprite file into the footer of your website. You can use the SVG icons by using the `svgstore::icon($id)` function, where `$id` is the identifier of the icon.
 
+### Icon ids
+
+SVG files are read from the `svgstore/` folder of the theme. The icon id is the file path relative to this folder, without the `.svg` extension, with folder separators replaced by dashes:
+
+| File                     | Id         | Usage                          |
+| ------------------------ | ---------- | ------------------------------ |
+| `svgstore/arrow.svg`     | `arrow`    | `svgstore::icon('arrow')`      |
+| `svgstore/social/x.svg`  | `social-x` | `svgstore::icon('social-x')`   |
+
+If several files resolve to the same id (e.g. `social-x.svg` and `social/x.svg`), `wp svgstore create` fails and the existing sprite file is left untouched.
+
 ### Via WP-CLI
 
 The plugin supports the following WP-CLI commands:

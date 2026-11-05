@@ -105,7 +105,7 @@ class svgstore
      * Creates the SVG store file from the SVG files in the source directory.
      *
      * Creates a new SVG document containing all the SVG symbols found in the source directory.
-     * The SVG symbols are wrapped in a <symbol> element with a unique id.
+     * The SVG symbols are wrapped in a <symbol> element with a unique id (see id()).
      * The viewBox attribute of the SVG symbol is copied from the original SVG element.
      * The content of the SVG element is copied recursively in the SVG symbol.
      * The resulting SVG document is written in the destination file.
@@ -116,7 +116,8 @@ class svgstore
      *  - destination: the path to the destination file.
      *  - nb_svg: the number of SVG files found in the source directory.
      *  - nb_symbols: the number of SVG symbols written in the destination file.
-     *  - error: (only when no symbol was found) the reason; the destination file is left untouched.
+     *  - error: (only on failure: no symbol found, or duplicate ids) the reason; the destination file is left untouched.
+     *  - duplicates: (only on duplicate ids) an array of id => list of files resolving to that id.
      *
      * @return array The result of the file creation.
      */
@@ -125,10 +126,11 @@ class svgstore
         $source = self::source();
         $destination = self::destination();
         $symbols = [];
+        $ids = [];
         $list = self::filemap($source) ?: [];
         foreach ($list as $item) {
             if (str_ends_with($item, '.svg')) {
-                $id = pathinfo($item, PATHINFO_FILENAME);
+                $id = self::id($item);
                 $itemDom = new DomDocument();
                 $itemDom->load($source . '/' . $item);
                 $tags = $itemDom->getElementsByTagName('svg');
@@ -146,6 +148,7 @@ class svgstore
                         }
                     }
                     $symbols[] = simplexml_import_dom($symbol)->asXML();
+                    $ids[$id][] = $item;
                 }
             }
         }
@@ -159,6 +162,24 @@ class svgstore
                 'nb_svg' => count($list),
                 'nb_symbols' => 0,
                 'error' => is_dir($source) ? 'No SVG symbol found in source directory' : 'Source directory not found',
+            ];
+        }
+
+        // Several files resolving to the same id (e.g. "social-x.svg" and "social/x.svg"): refuse to write.
+        $duplicates = array_filter($ids, fn($files) => count($files) > 1);
+        if (!empty($duplicates)) {
+            $details = [];
+            foreach ($duplicates as $id => $files) {
+                $details[] = '"' . $id . '" (' . implode(', ', $files) . ')';
+            }
+            return [
+                'success' => false,
+                'source' => $source,
+                'destination' => $destination,
+                'nb_svg' => count($list),
+                'nb_symbols' => 0,
+                'error' => 'Duplicate ids: ' . implode(', ', $details),
+                'duplicates' => $duplicates,
             ];
         }
 
@@ -179,6 +200,19 @@ class svgstore
             'nb_svg' => count($list),
             'nb_symbols' => count($symbols),
         ];
+    }
+
+    /**
+     * Computes the symbol id of an SVG file from its path relative to the source directory.
+     *
+     * Folder separators are replaced by dashes: "arrow.svg" => "arrow", "social/x.svg" => "social-x".
+     *
+     * @param string $path The path relative to the source directory.
+     * @return string The symbol id.
+     */
+    public static function id(string $path): string
+    {
+        return str_replace('/', '-', substr($path, 0, -strlen('.svg')));
     }
 
     /**
